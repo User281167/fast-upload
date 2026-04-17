@@ -39,6 +39,7 @@ def parse_args() -> argparse.Namespace:
         default="zip",
         help="Archive format to create before upload.",
     )
+
     return parser.parse_args()
 
 
@@ -47,15 +48,17 @@ def build_archive(source: Path, temp_dir: Path, archive_format: str) -> Path:
 
     if archive_format == "zip":
         archive_path = temp_dir / f"{base_name}.zip"
+
         with zipfile.ZipFile(
             archive_path, "w", compression=zipfile.ZIP_DEFLATED
         ) as archive:
-            if source.is_dir():
+            if not source.is_dir():
                 for path in source.rglob("*"):
                     if path.is_file():
                         archive.write(path, path.relative_to(source.parent))
             else:
                 archive.write(source, arcname=source.name)
+
         return archive_path
 
     archive_path = temp_dir / f"{base_name}.tar.gz"
@@ -66,24 +69,27 @@ def build_archive(source: Path, temp_dir: Path, archive_format: str) -> Path:
     return archive_path
 
 
-def main() -> None:
-    args = parse_args()
-    source = args.source.resolve()
-
+def run(
+    source: Path,
+    server: str = "localhost:8000",
+    format: str = "zip",
+    target_dir: str = "uploads",
+    overwrite: bool = False,
+) -> None:
     if not source.exists():
         raise SystemExit(f"source not found: {source}")
     if not source.is_dir():
         raise SystemExit(f"source is not a folder: {source}")
 
     with tempfile.TemporaryDirectory() as temp_dir:
-        archive = build_archive(source, Path(temp_dir), args.format)
+        archive = build_archive(source, Path(temp_dir), format)
 
         with archive.open("rb") as file_handle:
             response = requests.post(
-                f"{args.server.rstrip('/')}/upload",
+                f"{server.rstrip('/')}/upload",
                 data={
-                    "target_dir": args.target_dir,
-                    "allow_overwrite": str(args.overwrite).lower(),
+                    "target_dir": target_dir,
+                    "allow_overwrite": str(overwrite).lower(),
                 },
                 files={"file": (archive.name, file_handle, "application/octet-stream")},
                 timeout=120,
@@ -97,6 +103,19 @@ def main() -> None:
         print(response.text)
 
     response.raise_for_status()
+
+
+def main() -> None:
+    args = parse_args()
+    source = args.source.resolve()
+
+    run(
+        source=source,
+        server=args.server,
+        format=args.format,
+        target_dir=args.target_dir,
+        overwrite=args.overwrite,
+    )
 
 
 if __name__ == "__main__":
