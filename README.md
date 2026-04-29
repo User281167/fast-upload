@@ -26,11 +26,11 @@ uv run uvicorn main:app --host 0.0.0.0 --port 8000
 ## Example Upload
 
 ```bash
-uv run python examples/upload_example.py results --target-dir experiment_1
+uv run python scripts/upload.py results --target-dir folder
 ```
 
 Create `.tar.gz` instead:
 
 ```bash
-uv run python examples/upload_example.py results --target-dir experiment_1 --format tar.gz
+uv run python scripts/upload.py results --target-dir folder --format tar.gz
 ```
